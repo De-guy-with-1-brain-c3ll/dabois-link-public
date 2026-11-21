@@ -1,0 +1,8 @@
+[Unit]
+Description=Apply approved DABOIS Minecraft server changes
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/sleep 3
+ExecStart=/usr/local/sbin/dabois-admin-apply
+TimeoutStartSec=10min

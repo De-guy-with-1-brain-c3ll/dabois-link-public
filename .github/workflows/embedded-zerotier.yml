@@ -1,0 +1,94 @@
+name: Embedded ZeroTier build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            platform: windows-x64
+          - runner: ubuntu-24.04
+            platform: linux-x64
+          - runner: macos-15
+            platform: macos-arm64
+          - runner: macos-15-intel
+            platform: macos-x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Check out the pinned ZeroTier SDK
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch 1.8.10 https://github.com/zerotier/libzt.git build/libzt
+          if ((git -C build/libzt rev-parse HEAD) -ne 'a6f6886a8c8c07249f9e5d0cae431848727fe845') {
+            throw 'The ZeroTier SDK tag did not match the pinned source.'
+          }
+          git -C build/libzt submodule update --init --depth 1 --jobs 3
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build and package the Minecraft JNI library
+        shell: pwsh
+        run: |
+          cmake -S native/zerotier -B build/zt '-DCMAKE_POLICY_VERSION_MINIMUM=3.10' '-DCMAKE_BUILD_TYPE=Release' "-DLIBZT_SOURCE=$PWD/build/libzt"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build build/zt --config Release --parallel 2
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $out = Join-Path $PWD 'native-output'
+          cmake --install build/zt --config Release --prefix $out
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item build/libzt/LICENSE.txt "$out/libzt-LICENSE.txt"
+          $components = @{ 'ZeroTierOne' = 'ZeroTierOne'; 'lwip' = 'lwip'; 'lwip-contrib' = 'lwip-contrib' }
+          foreach ($component in $components.Keys) {
+            Get-ChildItem -LiteralPath "build/libzt/ext/$component" -File |
+              Where-Object Name -match '^(LICENSE|COPYING|NOTICE)' |
+              ForEach-Object { Copy-Item -LiteralPath $_.FullName "$out/$component-$($_.Name)" }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: native-output
+          if-no-files-found: error
+
+  mod:
+    needs: native
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          path: build/native-resources/dabois-zt
+      - name: Build the multi-platform Fabric mod
+        shell: pwsh
+        run: ./build.ps1 -NativeResources build/native-resources
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dabois-link-embedded
+          path: build/dabois-link.jar
+          if-no-files-found: error
+      - name: Package the setup wizards
+        shell: pwsh
+        run: |
+          $gson = Get-ChildItem -LiteralPath build/deps -Filter '*gson-*.jar' | Select-Object -First 1
+          if (!$gson) { throw 'Gson was not present in the Minecraft libraries.' }
+          ./setup/package.ps1 -ModJar build/dabois-link.jar -GsonJar $gson.FullName
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DABOIS-Installers
+          path: build/setup-packages/*.zip
+          if-no-files-found: error

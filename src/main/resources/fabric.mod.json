@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "dabois_link",
+  "version": "0.6.0",
+  "name": "DABOIS Link",
+  "description": "Private Minecraft connections with one-time pairing codes.",
+  "environment": "*",
+  "mixins": ["dabois-link.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "26.3",
+    "java": ">=25"
+  }
+}

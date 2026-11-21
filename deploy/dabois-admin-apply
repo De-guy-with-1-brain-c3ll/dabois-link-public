@@ -1,0 +1,44 @@
+#!/bin/bash
+set -eu
+cd /srv/minecraft-fabric
+request=config/dabois-link/apply-request.properties
+test -f "$request" || exit 0
+
+apply_java() {
+    runuser -u minecraft -- /usr/bin/java -cp mods/dabois-link.jar link.dabois.AdminApply "$1"
+}
+
+rollback() {
+    state=$?
+    systemctl stop minecraft
+    apply_java rollback || mv -T "$request" "$request.failed"
+    systemctl start minecraft
+    exit "$state"
+}
+
+trap rollback EXIT
+systemctl stop minecraft
+world=$(sed -n 's/^level-name=//p' server.properties)
+if [[ "$world" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$ && -d "$world" && ! -L "$world" ]]; then
+    umask 077
+    archive=$(mktemp /root/dabois-admin-world.XXXXXX)
+    if tar --exclude="$world/session.lock" -czf "$archive" -- "$world"; then
+        mv -T "$archive" /root/dabois-admin-world-backup.tar.gz
+    else
+        rm -f "$archive"
+        exit 1
+    fi
+fi
+apply_java apply
+started=$(date '+%Y-%m-%d %H:%M:%S')
+systemctl start minecraft
+for _ in $(seq 1 75); do
+    if systemctl is-active --quiet minecraft &&
+        journalctl -u minecraft --since "$started" --no-pager -o cat | grep -F 'DABOIS Link listening on TCP' >/dev/null; then
+        apply_java commit
+        trap - EXIT
+        exit 0
+    fi
+    sleep 2
+done
+exit 1

@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "package": "link.dabois.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["MultiplayerMixin"],
+  "server": ["DedicatedServerMixin", "CommandsMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

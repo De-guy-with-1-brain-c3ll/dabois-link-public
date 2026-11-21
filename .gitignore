@@ -1,0 +1,12 @@
+/build/
+/config/
+*.jar
+*.p12
+*.jks
+*.key
+*.pem
+.env
+.env.*
+identity.secret
+authtoken.secret
+dabois-link-invite.properties

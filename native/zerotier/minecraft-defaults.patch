@@ -1,0 +1,27 @@
+diff --git a/src/NodeService.cpp b/src/NodeService.cpp
+--- a/src/NodeService.cpp
++++ b/src/NodeService.cpp
+@@ -169,18 +169,19 @@ NodeService::NodeService()
+     , _primaryPort()
+     , _secondaryPort(0)
+     , _tertiaryPort(0)
+-    , _randomPortRangeStart(0)
+-    , _randomPortRangeEnd(0)
++    // DABOIS Link keeps the game node separate from an installed ZeroTier service.
++    , _randomPortRangeStart(20000)
++    , _randomPortRangeEnd(59999)
+     , _udpPortPickerCounter(0)
+     , _lastDirectReceiveFromGlobal(0)
+     , _lastRestart(0)
+     , _nextBackgroundTaskDeadline(0)
+     , _run(false)
+     , _termReason(ONE_STILL_RUNNING)
+-    , _allowPortMapping(true)
++    , _allowPortMapping(false)
+ #ifdef ZT_USE_MINIUPNPC
+     , _portMapper((PortMapper*)0)
+ #endif
+     , _allowSecondaryPort(true)
+-    , _allowNetworkCaching(true)
++    , _allowNetworkCaching(false)
+     , _allowPeerCaching(true)

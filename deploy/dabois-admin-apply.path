@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for approved DABOIS dashboard restarts
+
+[Path]
+PathExists=/srv/minecraft-fabric/config/dabois-link/apply-request.properties
+Unit=dabois-admin-apply.service
+
+[Install]
+WantedBy=multi-user.target
